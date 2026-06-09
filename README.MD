@@ -2,27 +2,67 @@
 
 ## Overview
 
-This project is a small Java Spring Boot backend application that simulates part of a real-time athlete tracking data platform.
+This project is a small Java Spring Boot backend application that practises an event-driven tracking data pipeline.
 
-The system accepts live tracking data through a REST API, transforms the request into an internal event contract, publishes the event to Kafka, and consumes the event asynchronously for downstream processing.
+The system accepts athlete tracking data through a REST API, transforms the request into an internal event contract, publishes the event to Kafka, and consumes the event asynchronously.
 
-This project was built as practice for backend engineering work involving Java, Kafka, event-driven architecture, real-time data ingestion, and clean API contracts.
+The purpose of the project is to practise the basic structure of a Java + Kafka backend pipeline.
+
+---
+
+## Project Status
+
+Current status:
+
+```text
+Conceptually structured, but not fully working end-to-end yet.
+```
+
+Current review grade:
+
+```text
+6.81 / 10
+```
+
+The project shows a reasonable first attempt at:
+
+* Spring Boot REST ingestion
+* DTO to event transformation
+* Kafka producer usage
+* Kafka consumer usage
+* Docker-based local Kafka setup
+* Basic event-driven architecture structure
+
+The project does not yet prove:
+
+* Low-latency processing
+* Production-grade Kafka usage
+* Reliable message delivery
+* Consumer lag handling
+* Retry/dead-letter handling
+* Observability
+* Distributed tracing
+* Schema evolution
+* Load testing
+* Cloud deployment
+* AWS integration
 
 ---
 
 ## Purpose
 
-The purpose of this project is to practise a small backend slice similar to a real sports data platform.
+The purpose of this project is to practise a small backend slice similar in shape to event-driven systems used in data platforms.
 
 The project focuses on:
 
-* Java backend service design
-* REST API ingestion
-* DTO to event transformation
-* Kafka producer/consumer flow
-* Docker-based local Kafka setup
-* Event-driven processing
-* Basic observability through logging
+* Receiving data through a REST API
+* Separating external request DTOs from internal event contracts
+* Transforming incoming data inside a service layer
+* Publishing an event to Kafka
+* Consuming an event from Kafka
+* Running Kafka locally with Docker Compose
+
+This is a learning project, not an advanced backend platform.
 
 ---
 
@@ -99,6 +139,21 @@ public record TrackingEventRequest(
 ) {}
 ```
 
+The request DTO represents data received from the external API.
+
+Current limitation:
+
+```text
+The request does not currently include the original event timestamp.
+```
+
+That means the system cannot distinguish between:
+
+* when the athlete position was actually recorded
+* when the backend received and processed the request
+
+This matters in real tracking systems.
+
 ---
 
 ## Internal Event Contract
@@ -114,13 +169,26 @@ public record AthletePositionEvent(
 ) {}
 ```
 
-The request DTO is separate from the internal event contract because external API input and internal event messages should not always be the same shape.
+The internal event contract represents the message sent to Kafka.
 
-The service maps the incoming request into an event and adds backend-owned metadata such as:
+The service currently adds:
 
 ```text
 source = REST_API
 timestamp = Instant.now()
+```
+
+Current limitation:
+
+```text
+timestamp currently means server-created time, not original tracking event time.
+```
+
+A better later version may use:
+
+```java
+Instant eventTimestamp;
+Instant receivedAt;
 ```
 
 ---
@@ -135,11 +203,17 @@ This topic represents a stream of athlete position events.
 
 The producer publishes events to this topic, and the consumer listens for events from it.
 
+Current limitation:
+
+```text
+The project does not yet prove correct Kafka behaviour end-to-end.
+```
+
 ---
 
 ## Running Kafka Locally
 
-Kafka is run through Docker Compose.
+Kafka is intended to run through Docker Compose.
 
 Start Kafka:
 
@@ -169,7 +243,7 @@ docker compose down
 
 ## Application Configuration
 
-Core Kafka configuration should look like this:
+Correct core Kafka configuration should look like this:
 
 ```properties
 spring.application.name=live-player-tracking
@@ -185,6 +259,25 @@ spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.Str
 spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
 
 spring.kafka.consumer.properties.spring.json.trusted.packages=com.independence.player.*
+```
+
+Important correction:
+
+```text
+Producer should serialize JSON.
+Consumer should deserialize JSON.
+```
+
+The producer should use:
+
+```properties
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+```
+
+The consumer should use:
+
+```properties
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
 ```
 
 ---
@@ -203,31 +296,64 @@ Creating a `NewTopic` bean does not automatically make that topic the default to
 
 ---
 
-## Current Status
-
-Current project status:
-
-* REST controller created
-* Request DTO created
-* Internal event record created
-* Service mapping created
-* Kafka consumer created
-* Docker Compose Kafka setup created
-* Kafka topic configuration attempted
-
-Current review grade:
+## Current Review Score
 
 ```text
-6.81 / 10
+Docker Compose: 8/10
+Kafka Topic config: 6.5/10
+Kafka Consumer: 7/10
+TrackingController: 8/10
+TrackingEventRequest DTO: 6.5/10
+AthletePositionEvent: 8/10
+TrackingService: 6.5/10
+application.properties: 4/10
+
+Overall: 6.81/10
 ```
 
-The project is conceptually correct, but still needs runtime wiring fixes before it can be considered complete.
+---
+
+## What This Project Demonstrates
+
+This project demonstrates beginner-to-intermediate practice with:
+
+* Structuring a Spring Boot backend
+* Creating a REST controller
+* Using DTOs and records
+* Separating API input from internal events
+* Mapping request data into an event object
+* Injecting and using `KafkaTemplate`
+* Creating a Kafka listener
+* Running Kafka locally with Docker Compose
+
+---
+
+## What This Project Does Not Yet Demonstrate
+
+This project does not yet demonstrate:
+
+* A working end-to-end Kafka flow
+* Production-ready Kafka configuration
+* Low-latency guarantees
+* Measured latency
+* Throughput testing
+* Backpressure handling
+* Retry strategy
+* Dead-letter topics
+* Schema registry
+* Versioned event contracts
+* Observability with metrics/tracing
+* Cloud deployment
+* AWS services
+* Secure API design
+* Load testing
+* Horizontal scaling
 
 ---
 
 ## Known Issues
 
-* Kafka producer/consumer serializer configuration needs to be correct
+* Kafka producer and consumer serializer configuration must be corrected
 * Topic config class should include `@Configuration`
 * Service should use explicit topic publishing instead of `sendDefault(...)`
 * Consumer should use a logger instead of `System.out.printf`
@@ -235,6 +361,7 @@ The project is conceptually correct, but still needs runtime wiring fixes before
 * Request DTO is missing a client/event timestamp
 * `@NotNull` on primitive `double` fields does not add useful validation
 * Class names such as `Consumer` and `Topic` should be renamed for clarity
+* The project has not yet been proven to run end-to-end
 
 ---
 
@@ -255,9 +382,15 @@ Recommended next steps:
 
 ---
 
-## End-to-End Win Condition
+## Next Ticket
 
-The project is complete when this flow works locally:
+### Make Live Athlete Tracking Pipeline Run End-to-End Locally
+
+The next goal is not to add more features.
+
+The next goal is to prove the current slice works.
+
+Win condition:
 
 ```text
 POST /api/tracking-events
@@ -271,21 +404,60 @@ Consumer receives event
 Consumer logs event clearly
 ```
 
+Do not add:
+
+* AWS
+* S3
+* Lambda
+* WebSockets
+* Database
+* Authentication
+* Extra event types
+* Extra services
+
 ---
 
-## Why This Project Matters
+## Future Advanced Work
 
-This project practises backend concepts used in real-time data systems.
+Only after the basic end-to-end flow works, future improvements could include:
 
-It maps to engineering work involving:
+* Measuring request-to-consumer latency
+* Adding event timestamps and received timestamps
+* Logging latency between ingestion and consumption
+* Adding retry handling
+* Adding a dead-letter topic
+* Adding structured logging
+* Adding metrics
+* Adding OpenTelemetry tracing
+* Adding Testcontainers integration tests
+* Adding schema versioning
+* Adding WebSocket delivery
+* Adding S3 or data lake storage
+* Adding AWS Lambda or SQS integration
 
-* Low-latency data ingestion
-* Kafka-based event-driven processing
-* Java backend services
-* Clean API contracts
-* Internal event contracts
-* Service boundaries
-* Asynchronous downstream processing
-* Docker-based local development
+These would move the project closer to advanced backend practice, but they are not currently implemented.
 
-The project is intentionally small and focused. The goal is not to build a full platform yet, but to prove a single backend event pipeline from ingestion to consumption.
+---
+
+## Final Judgement
+
+This project is a useful first Kafka/Spring Boot event-driven practice project.
+
+It has a reasonable structure, but it is not yet a working or advanced system.
+
+Final score:
+
+```text
+6.81 / 10
+```
+
+Current level:
+
+```text
+Good learning project.
+Not production-ready.
+Not low-latency.
+Not advanced yet.
+```
+
+The correct next step is to make the basic local Kafka flow work end-to-end before adding anything else.
